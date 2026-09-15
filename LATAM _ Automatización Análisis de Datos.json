@@ -1,0 +1,587 @@
+{
+  "name": "LATAM | Automatización Análisis de Datos",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -1248,
+        144
+      ],
+      "id": "7b9da823-cec7-4a2d-a63f-ab067aec8a18",
+      "name": "Ejecutar 'workflow'"
+    },
+    {
+      "parameters": {
+        "authentication": "appToken",
+        "resource": "deal",
+        "operation": "getAll",
+        "returnAll": true,
+        "filters": {
+          "properties": [
+            "hs_object_id",
+            "hubspot_owner_id",
+            "fecha_de_ganado",
+            "createdate",
+            "dealname",
+            "pipeline",
+            "arr",
+            "revenue",
+            "dealstage",
+            "pricing_fijo",
+            "monthly_gmv",
+            "origen_de_la_oportunidad__negocio_",
+            "pais",
+            "pricing_variado",
+            "amount",
+            "aov",
+            "fit_o_no_fit",
+            "industria",
+            "motivo_de_perdido",
+            "ticket_promedio",
+            "transacciones_mensuales_",
+            "motivo_de_no_fit",
+            "notes_last_updated",
+            "tipo_de_cliente",
+            "sku"
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.2,
+      "position": [
+        -1056,
+        144
+      ],
+      "id": "c899296f-0169-4e50-9563-e1c05ce23caf",
+      "name": "Extraer datos de HubSpot",
+      "credentials": {
+        "hubspotAppToken": {
+          "id": "fp03scUWvIjlgBjS",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// ============================================\n// DICCIONARIOS DE MAPEO ID → NOMBRE\n// ============================================\n\n// Mapeo de Pipelines\nconst pipelineMap = {\n  \"45415243\": \"LATAM Sales Pipeline\",\n};\n\n// Mapeo de Etapas (Stages)\nconst stageMap = {\n  // LATAM Sales Pipeline\n  \"93704483\": \"1. Target\",\n  \"93704485\": \"2. First Meeting\",\n  \"93704486\": \"3. Discovery\",\n  \"93704489\": \"4. Commercial Proposal\",\n  \"93720752\": \"5. Proposal Accepted\",\n  \"93720753\": \"6. Legal\",\n  \"93720754\": \"7. Won\",\n  \"93720756\": \"8. In Implementation\",\n  \"93720757\": \"9. Live\",\n  \"93720760\": \"Lost\",\n  \"96121413\": \"No Fit\",\n  \"93720761\": \"Icebox\",\n  \"94769845\": \"Long Term\"\n};\n\n// Si tienes propietarios, agrégalos aquí (opcional)\nconst ownerMap = {\n  // Ejemplo: descubre los IDs ejecutando el workflow y viendo qué IDs aparecen\n  \"123456789\": \"Fulano De Tal\",\n  \"987654321\": \"Pepito Perez\",\n  \"432198765\": \"John Doe\",\n  \"987612345\": \"Jane Doe\"\n};\n\n// ============================================\n// FUNCIÓN HELPER\n// ============================================\n\nconst getValue = (prop) => {\n  if (!prop) return '';\n  return prop.value !== undefined ? String(prop.value) : String(prop);\n};\n\n// ============================================\n// PROCESAMIENTO\n// ============================================\n\nconst items = $input.all();\n\nconst flattenedItems = items.map(item => {\n  const props = item.json.properties;\n  \n  // Extraer valores raw\n  const pipelineId = getValue(props.pipeline);\n  const stageId = getValue(props.dealstage);\n  const ownerId = getValue(props.hubspot_owner_id);\n  \n  // Mapear a nombres legibles\n  const pipelineName = pipelineMap[String(pipelineId)] || pipelineId;\n  const stageName = stageMap[String(stageId)] || stageId;\n  const ownerName = ownerMap[String(ownerId)] || ownerId;\n  \n  return {\n    json: {\n      'ID de registro': item.json.dealId || item.json.id || '',\n      'Nombre del negocio': getValue(props.dealname),\n      'Etapa del negocio': stageName,\n      'Fecha de Ganado ': getValue(props.fecha_de_ganado),\n      'Propietario del negocio': ownerName,\n      'Monthly Recurring Revenue (MRR)': getValue(props.revenue),\n      'Pipeline': pipelineName,\n      'Tipo de cliente': getValue(props.tipo_de_cliente),\n      'Fecha de creación': getValue(props.createdate),\n      'Valor': getValue(props.amount),\n      'Anual Recurring Revenue (ARR)': getValue(props.arr),\n      'Monthly Fee': getValue(props.pricing_fijo),\n      'Costo por Transacción ': getValue(props.pricing_variado),\n      'Origen de la oportunidad (Negocio)': getValue(props.origen_de_la_oportunidad__negocio_),\n      'Pais': getValue(props.pais),\n      'Monthly GMV': getValue(props.monthly_gmv),\n      'AOV': getValue(props.aov),\n      'FIT o NO FIT': getValue(props.fit_o_no_fit),\n      'Industria': getValue(props.industria),\n      'Motivo de perdido': getValue(props.motivo_de_perdido),\n      'SKU': getValue(props.sku),\n      'Ticket Promedio': getValue(props.ticket_promedio),\n      'Transacciones Mensuales.': getValue(props.transacciones_mensuales_),\n      'Última actividad': getValue(props.notes_last_updated),\n      'Motivo de no fit': getValue(props.motivo_de_no_fit),                \n    }\n  };\n});\n\nreturn flattenedItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -688,
+        144
+      ],
+      "id": "29633452-f4ac-4e5c-ad28-869a29fd4dd1",
+      "name": "Parsear datos"
+    },
+    {
+      "parameters": {
+        "jsCode": "// IDs de los pipelines permitidos\nconst allowedPipelines = [\n  \"45415243\", // LATAM Sales Pipeline\n];\n\n// IDs de las etapas permitidas por pipeline\nconst allowedStages = [\n  // LATAM Sales Pipeline\n  \"93704483\", // Target\n  \"93704485\", // First Meeting\n  \"93704486\", // Discovery\n  \"93704489\", // Commercial Proposal\n  \"93720752\", // Proposal Accepted\n  \"93720753\", // Legal\n  \"93720754\", // Won\n  \"93720756\", // In Implementation\n  \"93720757\", // Live\n  \"93720760\", // Lost\n  \"96121413\", // No Fit\n  \"93720761\", // Icebox\n  \"94769845\", // Long Term\n];\n\n// Obtener todos los items de entrada\nconst items = $input.all();\n\n// Filtrar solo los deals que cumplen las condiciones\nconst filteredItems = items.filter(item => {\n  const properties = item.json.properties;\n  \n  // Extraer valores como strings, manejando objetos o strings directos\n  const pipelineValue = typeof properties.pipeline === 'object' \n    ? properties.pipeline.value \n    : properties.pipeline;\n    \n  const stageValue = typeof properties.dealstage === 'object' \n    ? properties.dealstage.value \n    : properties.dealstage;\n  \n  // Convertir a string por si acaso\n  const pipelineStr = String(pipelineValue);\n  const stageStr = String(stageValue);\n  \n  const pipelineOk = allowedPipelines.includes(pipelineStr);\n  const stageOk = allowedStages.includes(stageStr);\n  \n  return pipelineOk && stageOk;\n});\n\n// Retornar items filtrados\nreturn filteredItems;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -864,
+        144
+      ],
+      "id": "1a656f09-7317-4fc6-9b46-0e595496e612",
+      "name": "Extraer datos requeridos"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/process",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        -336,
+        144
+      ],
+      "id": "37a334df-2d27-4b9e-8b45-c63b33f115be",
+      "name": "Llamar a microservicio de Python",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "operation": "clear",
+        "documentId": {
+          "__rl": true,
+          "value": "132NPC-Iay0nnIuk2GvX-P2vWhFZXaBgVjGRbSnR7oHI",
+          "mode": "list",
+          "cachedResultName": "HubSpot Pipelines - Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/132NPC-Iay0nnIuk2GvX-P2vWhFZXaBgVjGRbSnR7oHI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1380480445,
+          "mode": "list",
+          "cachedResultName": "Total Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/132NPC-Iay0nnIuk2GvX-P2vWhFZXaBgVjGRbSnR7oHI/edit#gid=1380480445"
+        },
+        "clear": "specificRange",
+        "range": "A2:AB"
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -160,
+        144
+      ],
+      "id": "7e1dee39-cfcd-4ac9-b307-b67d886eada1",
+      "name": "Limpiar hoja",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FCCzXCsVbAytfKfW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "132NPC-Iay0nnIuk2GvX-P2vWhFZXaBgVjGRbSnR7oHI",
+          "mode": "list",
+          "cachedResultName": "HubSpot Pipelines - Automation",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/132NPC-Iay0nnIuk2GvX-P2vWhFZXaBgVjGRbSnR7oHI/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1380480445,
+          "mode": "list",
+          "cachedResultName": "Total Pipeline",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/132NPC-Iay0nnIuk2GvX-P2vWhFZXaBgVjGRbSnR7oHI/edit#gid=1380480445"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "ID de registro",
+              "displayName": "ID de registro",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Nombre del negocio",
+              "displayName": "Nombre del negocio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Industria",
+              "displayName": "Industria",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Pais",
+              "displayName": "Pais",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Propietario del negocio",
+              "displayName": "Propietario del negocio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Pipeline",
+              "displayName": "Pipeline",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Tipo de cliente",
+              "displayName": "Tipo de cliente",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Etapa del negocio",
+              "displayName": "Etapa del negocio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fecha de creación",
+              "displayName": "Fecha de creación",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fecha de Ganado",
+              "displayName": "Fecha de Ganado",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Anual Recurring Revenue (ARR)",
+              "displayName": "Anual Recurring Revenue (ARR)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "AOV",
+              "displayName": "AOV",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Costo por Transacción",
+              "displayName": "Costo por Transacción",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Monthly Fee",
+              "displayName": "Monthly Fee",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Monthly GMV",
+              "displayName": "Monthly GMV",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Monthly Recurring Revenue (MRR)",
+              "displayName": "Monthly Recurring Revenue (MRR)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Ticket Promedio",
+              "displayName": "Ticket Promedio",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Transacciones Mensuales.",
+              "displayName": "Transacciones Mensuales.",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Valor",
+              "displayName": "Valor",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Origen de la oportunidad (Negocio)",
+              "displayName": "Origen de la oportunidad (Negocio)",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "FIT o NO FIT",
+              "displayName": "FIT o NO FIT",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Motivo de no fit",
+              "displayName": "Motivo de no fit",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Motivo de perdido",
+              "displayName": "Motivo de perdido",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Última actividad",
+              "displayName": "Última actividad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Fecha de corte",
+              "displayName": "Fecha de corte",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Duración del ciclo de venta",
+              "displayName": "Duración del ciclo de venta",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Días desde la última actividad",
+              "displayName": "Días desde la última actividad",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        192,
+        144
+      ],
+      "id": "71b5f8cd-6a1b-4ef3-b2f5-89e0b3e6b5c6",
+      "name": "Colocar nuevos datos sobre la hoja",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "FCCzXCsVbAytfKfW",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Agrupamos todos los items en un solo array llamado 'data'\nconst allItems = $input.all().map(item => item.json);\n\nreturn {\n  json: {\n    data: allItems\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -512,
+        144
+      ],
+      "id": "bb58f8de-f1d0-42d8-9e10-44f00be81371",
+      "name": "Convertir datos en formato JSON"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mode: Run Once for All Items\nconst inputItems = $input.all();\nconst base64String = inputItems[0].json.binary.data; // Ruta simple definida en app.py\n\n// Decodificar Buffer\nconst buffer = Buffer.from(base64String, 'base64');\nlet csvText = buffer.toString('utf-8');\nif (csvText.charCodeAt(0) === 0xFEFF) csvText = csvText.slice(1);\n\n// Parsear CSV de salida\nconst lines = csvText.split(/\\r\\n|\\r|\\n/);\nconst headers = lines[0].split(',');\nconst result = [];\n\nfor (let i = 1; i < lines.length; i++) {\n    const line = lines[i];\n    if (line && line.trim().length > 0) {\n        const rowValues = line.split(',');\n        const obj = {};\n        for (let j = 0; j < headers.length; j++) {\n            const header = headers[j].trim().replace(/^\"|\"$/g, '');\n            let val = rowValues[j];\n            if (val) val = val.trim().replace(/^\"|\"$/g, '');\n            obj[header] = val || null;\n        }\n        result.push({ json: obj });\n    }\n}\nreturn result;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        144
+      ],
+      "id": "93d18e77-578c-40db-ac93-ffd66c8a9479",
+      "name": "Parsear CSV"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Ejecutar 'workflow'": {
+      "main": [
+        [
+          {
+            "node": "Extraer datos de HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer datos de HubSpot": {
+      "main": [
+        [
+          {
+            "node": "Extraer datos requeridos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear datos": {
+      "main": [
+        [
+          {
+            "node": "Convertir datos en formato JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraer datos requeridos": {
+      "main": [
+        [
+          {
+            "node": "Parsear datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Llamar a microservicio de Python": {
+      "main": [
+        [
+          {
+            "node": "Limpiar hoja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limpiar hoja": {
+      "main": [
+        [
+          {
+            "node": "Parsear CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Convertir datos en formato JSON": {
+      "main": [
+        [
+          {
+            "node": "Llamar a microservicio de Python",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parsear CSV": {
+      "main": [
+        [
+          {
+            "node": "Colocar nuevos datos sobre la hoja",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "3f0bc6ef-171c-4651-97d9-3a87766a9e1c",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "c80a0ff2742ae0dcb8e66b7edff79c7115efe7fd69fc79f54a625738be66f38e"
+  },
+  "id": "0warrmtKoPq4HqDGLVNh3",
+  "tags": [
+    {
+      "updatedAt": "2026-01-20T16:08:29.054Z",
+      "createdAt": "2026-01-20T16:08:29.054Z",
+      "id": "D3yhtLKAVFv6DVHI",
+      "name": "sales"
+    }
+  ]
+}
