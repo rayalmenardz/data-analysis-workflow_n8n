@@ -118,4 +118,3 @@ const pipelineMap = {
 * **Mantenedor:** Raymond Almenares
 * **Versión:** 1.0
 * **Última actualización:** Enero 2026
-```
